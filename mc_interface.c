@@ -213,7 +213,13 @@ void mc_interface_init(void) {
 		break;
 
 	case SENSOR_PORT_MODE_MT6816_SPI:
+#if 0
 		encoder_init_mt6816_spi();
+		break;
+#endif
+
+	case SENSOR_PORT_MODE_PWM_ENCODER:
+		encoder_init_pwm();
 		break;
 
 	case SENSOR_PORT_MODE_AD2S1205:
@@ -342,6 +348,16 @@ void mc_interface_set_configuration(mc_configuration *configuration) {
 
 		case SENSOR_PORT_MODE_AS5047_SPI:
 			encoder_init_as5047p_spi();
+			break;
+
+		case SENSOR_PORT_MODE_MT6816_SPI:
+#if 0
+			encoder_init_mt6816_spi();
+			break;
+#endif
+
+		case SENSOR_PORT_MODE_PWM_ENCODER:
+			encoder_init_pwm();
 			break;
 
 		case SENSOR_PORT_MODE_AD2S1205:
