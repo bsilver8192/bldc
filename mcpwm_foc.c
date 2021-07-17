@@ -127,6 +127,7 @@ typedef struct {
 	float m_pos_pid_now;
 	float m_gamma_now;
 	bool m_using_encoder;
+	int cycles_since_encoder_switch;
 	float m_speed_est_fast;
 	float m_speed_est_faster;
 	int m_curr_samples;
@@ -2443,7 +2444,7 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 				motor_now->m_motor_state.phase = correct_encoder(
 						motor_now->m_phase_now_observer,
 						motor_now->m_phase_now_encoder,
-						motor_now->m_speed_est_fast,
+						motor_now->m_speed_est_faster,
 						conf_now->foc_sl_erpm,
 						motor_now);
 			} else {
@@ -3898,17 +3899,26 @@ static void start_pwm_hw(volatile motor_all_state_t *motor) {
 
 static float correct_encoder(float obs_angle, float enc_angle, float speed,
 							 float sl_erpm, volatile motor_all_state_t *motor) {
-	float rpm_abs = fabsf(speed / ((2.0 * M_PI) / 60.0));
-
-	// Hysteresis 5 % of total speed
-	float hyst = sl_erpm * 0.05;
-	if (motor->m_using_encoder) {
-		if (rpm_abs > (sl_erpm + hyst)) {
-			motor->m_using_encoder = false;
-		}
+	int cycles_since_switch = motor->cycles_since_encoder_switch;
+	if (cycles_since_switch < 40) {
+		// Not going to consider a switch this soon, to avoid the false velocity
+		// from the switch triggering our threshold.
+		motor->cycles_since_encoder_switch = cycles_since_switch + 1;
 	} else {
-		if (rpm_abs < (sl_erpm- hyst)) {
-			motor->m_using_encoder = true;
+		float rpm_abs = fabsf(speed / ((2.0 * M_PI) / 60.0));
+
+		// Hysteresis 5 % of total speed
+		float hyst = sl_erpm * 0.05;
+		if (motor->m_using_encoder) {
+			if (rpm_abs > (sl_erpm + hyst)) {
+				motor->m_using_encoder = false;
+				motor->cycles_since_encoder_switch = 0;
+			}
+		} else {
+			if (rpm_abs < (sl_erpm- hyst)) {
+				motor->m_using_encoder = true;
+				motor->cycles_since_encoder_switch = 0;
+			}
 		}
 	}
 
